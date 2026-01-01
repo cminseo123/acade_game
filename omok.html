@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Omok</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* [1] 오로라 배경 & 기본 세팅 */
+        body { 
+            font-family: Pretendard, sans-serif; 
+            margin: 0; overflow: hidden;
+            background: #0f0c29;
+            background: linear-gradient(to bottom, #1a1a2e, #16213e, #0f0c29);
+            color: white;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .aurora-bg {
+            position: absolute; inset: 0; z-index: -1;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            opacity: 0.8;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* [2] 인트로 화면 (모드 선택) */
+        #introScreen {
+            position: fixed; inset: 0; z-index: 50;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.3s;
+        }
+
+        .mode-btn {
+            width: 280px; padding: 25px; margin: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            text-align: left; cursor: pointer;
+            transition: all 0.2s;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .mode-btn:active { transform: scale(0.96); background: rgba(255, 255, 255, 0.2); }
+        .mode-icon { font-size: 2.5rem; margin-right: 15px; }
+
+        /* [3] 게임 화면 */
+        #gameScreen {
+            display: none; /* 처음에 숨김 */
+            flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; height: 100vh;
+            opacity: 0; transition: opacity 0.5s;
+        }
+        #gameScreen.show { opacity: 1; }
+
+        .board-wrapper {
+            width: 100%; max-width: 380px;
+            aspect-ratio: 1/1;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .omok-board {
+            display: grid;
+            grid-template-columns: repeat(15, 1fr);
+            grid-template-rows: repeat(15, 1fr);
+            width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .cell {
+            position: relative; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .cell::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(255,255,255,0.3); z-index: 0; }
+        .cell::after { content: ''; position: absolute; top: 0; left: 50%; width: 1px; height: 100%; background: rgba(255,255,255,0.3); z-index: 0; }
+
+        /* 바둑돌 스타일 (빨간 점 제거됨) */
+        .stone {
+            width: 85%; height: 85%; border-radius: 50%; z-index: 10;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            transform: scale(0); animation: popIn 0.2s forwards;
+        }
+        @keyframes popIn { to { transform: scale(1); } }
+
+        .stone-black { background: radial-gradient(circle at 30% 30%, #666, #000); box-shadow: 0 0 10px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1); }
+        .stone-white { background: radial-gradient(circle at 30% 30%, #fff, #ddd); box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        
+        /* [수정됨] 
+           .last-move::after 스타일을 아예 삭제했습니다.
+           이제 빨간 점이 나오지 않습니다.
+        */
+
+        .turn-indicator {
+            padding: 8px 20px; border-radius: 30px;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            font-weight: bold; display: flex; align-items: center; gap: 10px;
+            margin-bottom: 20px;
+        }
+        .current-stone { width: 20px; height: 20px; border-radius: 50%; display: inline-block; }
+
+        .overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .overlay.show { opacity: 1; pointer-events: auto; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center h-screen">
+
+    <div class="aurora-bg"></div>
+
+    <div class="absolute top-6 left-6 z-50">
+        <a href="index.html" class="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white active:scale-90 transition">
+            <i class="fa-solid fa-xmark"></i>
+        </a>
+    </div>
+
+    <div id="introScreen">
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400">NEON OMOK</h1>
+            <p class="text-gray-400 text-sm mt-2">상대를 선택하세요</p>
+        </div>
+
+        <button class="mode-btn group" onclick="startGame('friend')">
+            <div class="flex items-center">
+                <span class="mode-icon">👥</span>
+                <div>
+                    <h3 class="text-xl font-bold group-hover:text-blue-300 transition">친구와 대결</h3>
+                    <p class="text-xs text-gray-400">P vs P Mode</p>
+                </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-gray-500"></i>
+        </button>
+
+        <button class="mode-btn group" onclick="startGame('ai')">
+            <div class="flex items-center">
+                <span class="mode-icon">🤖</span>
+                <div>
+                    <h3 class="text-xl font-bold group-hover:text-pink-300 transition">AI와 대결</h3>
+                    <p class="text-xs text-gray-400">P vs AI Mode</p>
+                </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-gray-500"></i>
+        </button>
+    </div>
+
+    <div id="gameScreen">
+        
+        <div class="text-center mb-4">
+            <h1 class="text-2xl font-black italic text-gray-300">OMOK BATTLE</h1>
+            <p class="text-xs text-gray-500" id="modeDisplay">VS PLAYER</p>
+        </div>
+
+        <div class="turn-indicator">
+            <span id="turnText">BLACK TURN</span>
+            <div id="turnStone" class="current-stone stone-black"></div>
+        </div>
+
+        <div class="board-wrapper">
+            <div id="board" class="omok-board"></div>
+        </div>
+
+        <div class="flex gap-4 mt-8">
+            <button onclick="goToMenu()" class="px-6 py-2 bg-white/5 text-sm font-bold rounded-full border border-white/10 active:bg-white/10 transition text-gray-400">
+                메뉴로
+            </button>
+            <button onclick="resetGame()" class="px-6 py-2 bg-white/10 text-sm font-bold rounded-full border border-white/20 active:bg-white/20 transition">
+                다시 하기 ↻
+            </button>
+        </div>
+    </div>
+
+    <div id="resultScreen" class="overlay">
+        <div class="text-6xl mb-4 animate-bounce" id="winIcon">🏆</div>
+        <h2 id="resultTitle" class="text-4xl font-black mb-2 text-white">BLACK WINS!</h2>
+        <p class="text-gray-400 text-sm mb-8">한 판 더?</p>
+        
+        <div class="flex flex-col gap-3 w-64">
+            <button onclick="resetGame()" class="w-full py-3 bg-white text-black font-bold rounded-full text-lg shadow-lg active:scale-95 transition">
+                다시 시작
+            </button>
+            <button onclick="goToMenu()" class="w-full py-3 bg-white/10 text-white font-bold rounded-full text-lg border border-white/20 active:scale-95 transition">
+                다른 모드 하기
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 15;
+        const boardEl = document.getElementById('board');
+        const turnText = document.getElementById('turnText');
+        const turnStone = document.getElementById('turnStone');
+        const resultScreen = document.getElementById('resultScreen');
+        const resultTitle = document.getElementById('resultTitle');
+        const winIcon = document.getElementById('winIcon');
+        const introScreen = document.getElementById('introScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const modeDisplay = document.getElementById('modeDisplay');
+
+        let boardData = []; 
+        let currentPlayer = 1; 
+        let isGameOver = false;
+        let isAIMode = false;
+        
+        // [수정됨] lastMove 변수는 더 이상 사용하지 않음
+
+        function startGame(mode) {
+            isAIMode = (mode === 'ai');
+            introScreen.classList.add('hidden');
+            gameScreen.style.display = 'flex';
+            setTimeout(() => gameScreen.classList.add('show'), 10); 
+            modeDisplay.innerText = isAIMode ? "VS AI COMPUTER" : "VS FRIEND";
+            initGame();
+        }
+
+        function goToMenu() {
+            resultScreen.classList.remove('show');
+            gameScreen.classList.remove('show');
+            setTimeout(() => {
+                gameScreen.style.display = 'none';
+                introScreen.classList.remove('hidden');
+            }, 300);
+        }
+
+        function initGame() {
+            boardEl.innerHTML = '';
+            boardData = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
+            currentPlayer = 1;
+            isGameOver = false;
+            updateTurnUI();
+            createBoard();
+            resultScreen.classList.remove('show');
+        }
+
+        function createBoard() {
+            for (let y = 0; y < BOARD_SIZE; y++) {
+                for (let x = 0; x < BOARD_SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    cell.addEventListener('click', () => handleInput(x, y));
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function handleInput(x, y) {
+            if (isGameOver || boardData[y][x] !== 0) return;
+            if (isAIMode && currentPlayer === 2) return; 
+
+            placeStone(x, y);
+        }
+
+        function placeStone(x, y) {
+            boardData[y][x] = currentPlayer;
+            const index = y * BOARD_SIZE + x;
+            const cell = boardEl.children[index];
+            
+            const stone = document.createElement('div');
+            stone.classList.add('stone', currentPlayer === 1 ? 'stone-black' : 'stone-white');
+            
+            // [수정됨] 빨간 점 찍는 로직 삭제
+            // if (lastMove) lastMove.classList.remove('last-move');
+            // stone.classList.add('last-move');
+            // lastMove = stone;
+
+            cell.appendChild(stone);
+
+            if (checkWin(x, y, currentPlayer)) {
+                endGame(currentPlayer);
+                return;
+            }
+
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updateTurnUI();
+
+            if (isAIMode && currentPlayer === 2) {
+                setTimeout(aiMove, 500);
+            }
+        }
+
+        function aiMove() {
+            if (isGameOver) return;
+            let maxScore = -1;
+            let bestMoves = [];
+
+            for (let y = 0; y < BOARD_SIZE; y++) {
+                for (let x = 0; x < BOARD_SIZE; x++) {
+                    if (boardData[y][x] === 0) {
+                        const attackScore = evaluatePoint(x, y, 2);
+                        const defenseScore = evaluatePoint(x, y, 1);
+                        const totalScore = attackScore + (defenseScore * 1.1); 
+
+                        if (totalScore > maxScore) {
+                            maxScore = totalScore;
+                            bestMoves = [{x, y}];
+                        } else if (totalScore === maxScore) {
+                            bestMoves.push({x, y});
+                        }
+                    }
+                }
+            }
+
+            if (bestMoves.length > 0) {
+                const move = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+                placeStone(move.x, move.y);
+            }
+        }
+
+        function evaluatePoint(x, y, player) {
+            const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
+            let totalScore = 0;
+
+            for (let [dx, dy] of directions) {
+                let count = 1; let blocked = 0;
+                for (let i = 1; i < 5; i++) {
+                    const nx = x + dx * i, ny = y + dy * i;
+                    if (!isValid(nx, ny)) { blocked++; break; }
+                    if (boardData[ny][nx] === player) count++;
+                    else if (boardData[ny][nx] !== 0) { blocked++; break; }
+                    else break;
+                }
+                for (let i = 1; i < 5; i++) {
+                    const nx = x - dx * i, ny = y - dy * i;
+                    if (!isValid(nx, ny)) { blocked++; break; }
+                    if (boardData[ny][nx] === player) count++;
+                    else if (boardData[ny][nx] !== 0) { blocked++; break; }
+                    else break;
+                }
+                
+                if (count >= 5) totalScore += 100000;
+                else if (count === 4) totalScore += (blocked === 0 ? 10000 : 1000);
+                else if (count === 3) totalScore += (blocked === 0 ? 1000 : 100);
+                else if (count === 2) totalScore += 10;
+            }
+            return totalScore;
+        }
+
+        function updateTurnUI() {
+            if (currentPlayer === 1) {
+                turnText.innerText = isAIMode ? "YOUR TURN" : "BLACK TURN";
+                turnText.style.color = "#ccc";
+                turnStone.className = "current-stone stone-black";
+            } else {
+                turnText.innerText = isAIMode ? "AI THINKING..." : "WHITE TURN";
+                turnText.style.color = "#fff";
+                turnStone.className = "current-stone stone-white";
+            }
+        }
+
+        function checkWin(x, y, player) {
+            const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
+            for (let [dx, dy] of directions) {
+                let count = 1;
+                for (let i = 1; i < 5; i++) {
+                    if (isValid(x + dx * i, y + dy * i) && boardData[y + dy * i][x + dx * i] === player) count++;
+                    else break;
+                }
+                for (let i = 1; i < 5; i++) {
+                    if (isValid(x - dx * i, y - dy * i) && boardData[y - dy * i][x - dx * i] === player) count++;
+                    else break;
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+
+        function isValid(x, y) { return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE; }
+
+        function endGame(winner) {
+            isGameOver = true;
+            const winnerName = winner === 1 ? "BLACK WINS!" : (isAIMode ? "AI WINS! 🤖" : "WHITE WINS!");
+            resultTitle.innerText = winnerName;
+            winIcon.innerText = winner === 1 ? "⚫️" : "⚪️";
+            setTimeout(() => resultScreen.classList.add('show'), 500);
+        }
+
+        function resetGame() { initGame(); }
+    </script>
+</body>
+</html>

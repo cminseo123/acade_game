@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Psychology Test</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* [1] 오로라 배경 & 기본 세팅 */
+        body { 
+            font-family: Pretendard, sans-serif; 
+            margin: 0; overflow-x: hidden;
+            background: #0f0c29;
+            background: linear-gradient(to bottom, #24243e, #302b63, #0f0c29);
+            color: white;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .aurora-bg {
+            position: fixed; inset: 0; z-index: -1;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            opacity: 0.8;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* [2] 글래스 카드 스타일 */
+        .glass-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+
+        /* [3] 메뉴 버튼 스타일 */
+        .menu-btn {
+            display: flex; align-items: center; gap: 15px;
+            width: 100%; padding: 20px; margin-bottom: 15px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s; cursor: pointer;
+        }
+        .menu-btn:active { transform: scale(0.96); background: rgba(255, 255, 255, 0.15); }
+        
+        /* [4] 귀여운 캐릭터 애니메이션 */
+        .cute-char {
+            font-size: 4rem;
+            filter: drop-shadow(0 5px 15px rgba(0,0,0,0.3));
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(5deg); }
+        }
+
+        /* 선택지 버튼 */
+        .option-btn {
+            width: 100%; padding: 18px; margin-bottom: 10px;
+            border-radius: 15px; text-align: left; font-weight: bold;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.2s;
+        }
+        .option-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.98); }
+
+        .hidden { display: none; }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen p-6">
+
+    <div class="aurora-bg"></div>
+    <div class="absolute inset-0 bg-black/20 z-0"></div>
+
+    <div class="absolute top-6 left-6 z-50">
+        <a href="index.html" class="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white active:scale-90 transition">
+            <i class="fa-solid fa-xmark"></i>
+        </a>
+    </div>
+
+    <div id="menuScreen" class="relative z-10 w-full max-w-md mt-16 fade-in">
+        <div class="text-center mb-10">
+            <span class="text-xs font-bold text-pink-300 tracking-widest bg-white/10 px-3 py-1 rounded-full">VIBE CHECK</span>
+            <h1 class="text-3xl font-black italic mt-3 text-white">PSYCHOLOGY<br>TEST</h1>
+            <p class="text-gray-300 text-sm mt-2">오늘 너의 무드를 알아봐 ✨</p>
+        </div>
+
+        <div onclick="startTest('cocktail')" class="menu-btn group">
+            <div class="text-4xl group-hover:scale-110 transition">🍹</div>
+            <div class="text-left">
+                <h3 class="font-bold text-lg text-white">연애 칵테일 테스트</h3>
+                <p class="text-xs text-gray-400">나의 숨겨진 연애 스타일은?</p>
+            </div>
+            <i class="fa-solid fa-chevron-right ml-auto text-gray-500"></i>
+        </div>
+
+        <div onclick="startTest('travel')" class="menu-btn group">
+            <div class="text-4xl group-hover:scale-110 transition">✈️</div>
+            <div class="text-left">
+                <h3 class="font-bold text-lg text-white">여행 메이트 찾기</h3>
+                <p class="text-xs text-gray-400">우리는 환상의 짝꿍일까?</p>
+            </div>
+            <i class="fa-solid fa-chevron-right ml-auto text-gray-500"></i>
+        </div>
+
+        <div onclick="startTest('animal')" class="menu-btn group">
+            <div class="text-4xl group-hover:scale-110 transition">🐕</div>
+            <div class="text-left">
+                <h3 class="font-bold text-lg text-white">영혼의 동물 찾기</h3>
+                <p class="text-xs text-gray-400">내 내면엔 어떤 동물이 살까?</p>
+            </div>
+            <i class="fa-solid fa-chevron-right ml-auto text-gray-500"></i>
+        </div>
+    </div>
+
+    <div id="questionScreen" class="hidden relative z-10 w-full max-w-md mt-10 text-center fade-in">
+        
+        <div class="mb-6 h-24 flex items-center justify-center">
+            <div id="qChar" class="cute-char">🐻</div>
+        </div>
+
+        <div class="glass-box p-8">
+            <h2 id="qTitle" class="text-xl font-bold mb-6 leading-relaxed break-keep">
+                질문이 들어갈 자리
+            </h2>
+            <div id="qOptions" class="grid gap-2">
+                </div>
+        </div>
+
+        <button onclick="goBack()" class="mt-6 text-gray-400 text-sm underline">목록으로 돌아가기</button>
+    </div>
+
+    <div id="resultScreen" class="hidden relative z-10 w-full max-w-md mt-10 text-center fade-in">
+        
+        <div class="mb-4">
+            <div id="rIcon" class="text-6xl drop-shadow-lg animate-bounce">💖</div>
+        </div>
+
+        <div class="glass-box p-8">
+            <span class="text-xs font-bold text-yellow-400 tracking-widest">YOUR TYPE</span>
+            <h2 id="rTitle" class="text-2xl font-black mt-2 mb-4 text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-purple-300">
+                결과 제목
+            </h2>
+            <div class="w-full h-px bg-white/20 my-4"></div>
+            <p id="rDesc" class="text-gray-200 text-sm leading-relaxed break-keep">
+                결과 설명
+            </p>
+        </div>
+
+        <button onclick="goBack()" class="mt-8 w-full py-3 bg-white text-black font-bold rounded-full shadow-lg active:scale-95 transition">
+            다른 테스트도 하기 ↻
+        </button>
+    </div>
+
+    <script>
+        // 테스트 데이터 모음 (3가지)
+        const tests = {
+            'cocktail': {
+                char: '🍹',
+                question: '분위기 좋은 라운지 바.<br>바텐더가 "서비스입니다" 하며<br>칵테일 한 잔을 건넸다.<br><br><span class="text-yellow-400">이 칵테일은 무슨 색일까?</span>',
+                options: [
+                    { text: '❤️ 강렬한 레드 (Red)', result: 'red' },
+                    { text: '💙 신비로운 블루 (Blue)', result: 'blue' },
+                    { text: '💛 상큼한 옐로우 (Yellow)', result: 'yellow' },
+                    { text: '🤍 투명한 클리어 (Clear)', result: 'clear' }
+                ],
+                results: {
+                    'red': { icon: '🔥', title: '직진 불도저', desc: '마음에 들면 앞뒤 안 재고 직진! 솔직하고 뜨거운 연애를 선호해요.' },
+                    'blue': { icon: '❄️', title: '쿨한 지성인', desc: '차분하고 신중하게 사람을 파악해요. 한 번 마음 열면 끝까지 가는 진국!' },
+                    'yellow': { icon: '✨', title: '핵인싸 분위기 메이커', desc: '같이 있으면 24시간 꿀잼! 친구처럼 편안하고 즐거운 연애를 추구해요.' },
+                    'clear': { icon: '💎', title: '순수 로맨티스트', desc: '밀당은 딱 질색! 있는 그대로 보여주는 순수한 사랑꾼이에요.' }
+                }
+            },
+            'travel': {
+                char: '✈️',
+                question: '내일 당장 떠날 수 있는<br>비행기 티켓이 생겼다!<br><br><span class="text-green-400">어디로 떠나고 싶어?</span>',
+                options: [
+                    { text: '🏖️ 에메랄드빛 휴양지', result: 'relax' },
+                    { text: '🏙️ 화려한 대도시 야경', result: 'city' },
+                    { text: '⛰️ 사람 없는 대자연', result: 'nature' },
+                    { text: '🏰 역사 깊은 유럽 골목', result: 'history' }
+                ],
+                results: {
+                    'relax': { icon: '🥥', title: '힐링 마스터', desc: '계획? 몰라, 일단 누워! 호캉스와 맛집 탐방이 최고의 여행이라 생각하는 힐링러.' },
+                    'city': { icon: '🌃', title: '트렌드 세터', desc: '쇼핑, 핫플, 인생샷! 1분 1초도 낭비하지 않고 도시를 정복하는 에너자이저.' },
+                    'nature': { icon: '🌿', title: '고독한 모험가', desc: '복잡한 건 싫어! 자연 속에서 멍때리며 에너지를 충전하는 감성 캠퍼.' },
+                    'history': { icon: '🏛️', title: '감성 탐험가', desc: '골목길 걸으며 현지 느낌 만끽! 남들 다 가는 곳보다 나만의 장소를 찾는 낭만파.' }
+                }
+            },
+            'animal': {
+                char: '🐕',
+                question: '숲속을 걷다가<br>우연히 작은 동물을 만났다.<br><br><span class="text-orange-400">가장 먼저 눈이 마주친 동물은?</span>',
+                options: [
+                    { text: '🐰 깡총깡총 토끼', result: 'rabbit' },
+                    { text: '🦊 눈치 빠른 여우', result: 'fox' },
+                    { text: '🐻 듬직한 곰', result: 'bear' },
+                    { text: '🦌 우아한 사슴', result: 'deer' }
+                ],
+                results: {
+                    'rabbit': { icon: '🐰', title: '사랑둥이 토끼', desc: '호기심 많고 애교 만점! 어디서나 사랑받는 귀여운 막내 재질이에요.' },
+                    'fox': { icon: '🦊', title: '매력 천재 여우', desc: '센스 만점에 눈치 100단! 상황 파악이 빠르고 매력이 넘치는 인기쟁이.' },
+                    'bear': { icon: '🐻', title: '든든한 곰돌이', desc: '우직하고 믿음직스러워요. 묵묵히 곁을 지켜주는 든든한 버팀목 같은 사람.' },
+                    'deer': { icon: '🦌', title: '섬세한 사슴', desc: '감수성이 풍부하고 우아해요. 평화롭고 조용한 분위기를 사랑하는 예술가 타입.' }
+                }
+            }
+        };
+
+        let currentTestId = '';
+
+        function startTest(id) {
+            currentTestId = id;
+            const data = tests[id];
+
+            // 화면 전환
+            document.getElementById('menuScreen').classList.add('hidden');
+            document.getElementById('questionScreen').classList.remove('hidden');
+
+            // 질문 세팅
+            document.getElementById('qChar').innerText = data.char;
+            document.getElementById('qTitle').innerHTML = data.question;
+
+            // 선택지 생성
+            const optionsDiv = document.getElementById('qOptions');
+            optionsDiv.innerHTML = ''; // 초기화
+            
+            data.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => showResult(opt.result);
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        function showResult(resultKey) {
+            const data = tests[currentTestId].results[resultKey];
+
+            document.getElementById('questionScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.remove('hidden');
+
+            document.getElementById('rIcon').innerText = data.icon;
+            document.getElementById('rTitle').innerText = data.title;
+            document.getElementById('rDesc').innerText = data.desc;
+        }
+
+        function goBack() {
+            // 초기화 후 메뉴로
+            document.getElementById('resultScreen').classList.add('hidden');
+            document.getElementById('questionScreen').classList.add('hidden');
+            document.getElementById('menuScreen').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Arcade Balance</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* [1] 기본 설정 */
+        body { 
+            font-family: Pretendard, sans-serif; 
+            margin: 0; overflow: hidden;
+            background: #0f0c29;
+            background: linear-gradient(to bottom, #1a1a2e, #16213e, #0f0c29);
+            color: white;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        /* [2] 게임 화면 (Game Screen) */
+        #gameScreen {
+            width: 100%; height: 100vh;
+            display: flex; flex-direction: column;
+            transition: opacity 0.5s;
+        }
+
+        /* 상단 질문 전광판 */
+        .screen-area {
+            height: 55vh; width: 100%;
+            display: flex; flex-direction: column;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .question-box {
+            flex: 1;
+            display: flex; flex-direction: column; 
+            align-items: center; justify-content: center;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            text-align: center;
+            border: 2px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+
+        .box-a { background: linear-gradient(135deg, rgba(255, 65, 108, 0.2), rgba(255, 65, 108, 0.05)); }
+        .box-b { background: linear-gradient(135deg, rgba(33, 147, 176, 0.2), rgba(33, 147, 176, 0.05)); }
+
+        .q-text {
+            font-size: 1.6rem; font-weight: 800;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            word-break: keep-all; line-height: 1.3;
+        }
+
+        /* 하단 컨트롤러 */
+        .control-area {
+            height: 45vh; width: 100%;
+            background: #111;
+            border-top: 4px solid #333;
+            border-radius: 40px 40px 0 0;
+            display: flex; align-items: center; justify-content: space-evenly;
+            padding-bottom: 20px;
+            position: relative;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* 3D 아케이드 버튼 */
+        .arcade-btn {
+            width: 140px; height: 140px;
+            border-radius: 50%;
+            border: none; position: relative; cursor: pointer;
+            transition: all 0.1s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            -webkit-user-select: none;
+        }
+        .btn-red {
+            background: radial-gradient(circle at 30% 30%, #ff5e62, #ff0000);
+            box-shadow: 0 10px 0 #990000, 0 15px 20px rgba(0,0,0,0.4), inset 0 5px 10px rgba(255,255,255,0.4);
+        }
+        .btn-red:active { transform: translateY(10px); box-shadow: 0 0 0 #990000, inset 0 5px 10px rgba(0,0,0,0.6); }
+        
+        .btn-blue {
+            background: radial-gradient(circle at 30% 30%, #36d1dc, #5b86e5);
+            box-shadow: 0 10px 0 #005EA2, 0 15px 20px rgba(0,0,0,0.4), inset 0 5px 10px rgba(255,255,255,0.4);
+        }
+        .btn-blue:active { transform: translateY(10px); box-shadow: 0 0 0 #005EA2, inset 0 5px 10px rgba(0,0,0,0.6); }
+
+        .btn-label { font-size: 2rem; font-weight: 900; color: rgba(255,255,255,0.9); text-shadow: 0 2px 2px rgba(0,0,0,0.3); }
+
+        /* 타이머 */
+        .timer-display {
+            position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+            background: #000; border: 4px solid #555; border-radius: 15px; padding: 5px 20px;
+            font-family: 'Courier New', monospace; font-size: 2rem; font-weight: bold; color: #FFD700;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 20;
+        }
+        .timer-urgent { color: #ff0000; text-shadow: 0 0 10px #ff0000; animation: blink 0.2s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* [3] 결과 화면 (Result Screen) */
+        #resultScreen {
+            position: fixed; inset: 0; z-index: 200;
+            background: rgba(15, 12, 41, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex; flex-direction: column; align-items: center;
+            padding: 20px;
+            overflow-y: auto;
+            opacity: 0; pointer-events: none; transition: opacity 0.5s;
+        }
+        #resultScreen.show { opacity: 1; pointer-events: auto; }
+
+        /* 분석 코멘트 박스 (NEW) */
+        .analysis-box {
+            width: 100%; max-width: 500px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .analysis-title {
+            font-size: 1.5rem; font-weight: 900; margin-bottom: 10px;
+            background: linear-gradient(to right, #ffd194, #70e1f5);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .analysis-desc {
+            font-size: 0.9rem; color: #ddd; line-height: 1.6; word-break: keep-all;
+        }
+
+        .result-card {
+            width: 100%; max-width: 500px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            margin-bottom: 10px;
+            padding: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .choice-badge {
+            padding: 5px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: bold; width: 60px; text-align: center;
+        }
+        .badge-a { background: rgba(255, 65, 108, 0.2); color: #ff8a8a; border: 1px solid #ff416c; }
+        .badge-b { background: rgba(33, 147, 176, 0.2); color: #7deeff; border: 1px solid #2193b0; }
+        
+        .result-text { font-size: 1rem; font-weight: bold; flex: 1; margin-left: 15px; text-align: left; }
+
+        /* 진행도 바 */
+        .progress-bar {
+            position: absolute; top: 0; left: 0; height: 4px; background: #4CAF50; transition: width 0.3s;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+
+    <div class="absolute top-4 left-4 z-50">
+        <a href="index.html" class="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white text-xs active:scale-90 transition">✕</a>
+    </div>
+
+    <div id="gameScreen">
+        <div class="screen-area">
+            <div class="question-box box-a" id="boxA">
+                <span class="text-[10px] font-bold text-red-300 mb-2 tracking-widest">OPTION A</span>
+                <div id="textA" class="q-text">질문 A</div>
+            </div>
+            
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black border-2 border-white rounded-full w-10 h-10 flex items-center justify-center font-black italic text-yellow-400 z-20">VS</div>
+
+            <div class="question-box box-b" id="boxB">
+                <span class="text-[10px] font-bold text-cyan-300 mb-2 tracking-widest">OPTION B</span>
+                <div id="textB" class="q-text">질문 B</div>
+            </div>
+        </div>
+
+        <div class="control-area">
+            <div class="timer-display" id="timer">3.00</div>
+            <button class="arcade-btn btn-red" onclick="select('A')"><span class="btn-label">A</span></button>
+            <button class="arcade-btn btn-blue" onclick="select('B')"><span class="btn-label">B</span></button>
+        </div>
+    </div>
+
+    <div id="resultScreen">
+        <div class="text-center mt-10 mb-6">
+            <h1 class="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">ANALYSIS</h1>
+            <p class="text-gray-400 text-sm mt-1">심리학적 인류 유형 분석</p>
+        </div>
+
+        <div id="analysisBox" class="analysis-box">
+            <div id="analysisTitle" class="analysis-title">분석중...</div>
+            <div id="analysisDesc" class="analysis-desc"></div>
+        </div>
+
+        <div id="resultList" class="w-full max-w-md pb-40">
+            </div>
+
+        <div class="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black to-transparent z-50">
+            <button onclick="location.reload()" class="w-full py-4 bg-white text-black font-black text-xl rounded-full shadow-lg active:scale-95 transition">
+                다시 하기 ↻
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 질문 리스트
+        const allQuestions = [
+            { A: "연락 두절", B: "폰 검사" },
+            { A: "나를 좋아하는", B: "내가 좋아하는" },
+            { A: "술자리 5회", B: "이성친구 5명" },
+            { A: "모르는 게 약", B: "아는 게 힘" },
+            { A: "입 꾹 닫음", B: "논리왕 변신" },
+            { A: "집 데이트", B: "밖 데이트" },
+            { A: "과거 오픈", B: "절대 비밀" },
+            { A: "이성친구 밥", B: "이성친구 술" },
+            { A: "매일 사랑해", B: "월 1회 명품" },
+            { A: "10년지기 여사친", B: "연락하는 전애인" },
+            { A: "재입대 (2번)", B: "바퀴벌레 (1년)" },
+            { A: "평생 안 씻기", B: "평생 양치 안하기" },
+            { A: "환승 이별", B: "잠수 이별" },
+            { A: "능력 빚 10억", B: "백수 자산 100억" },
+            { A: "스킨십만", B: "말만 함" },
+            { A: "얼굴 천재 노잼", B: "평범 개그 천재" },
+            { A: "답장 3시간", B: "답장 3초" },
+            { A: "계획적 (J)", B: "즉흥적 (P)" },
+            { A: "여름 패딩", B: "겨울 반팔" },
+            { A: "고기 끊기", B: "밀가루 끊기" },
+            { A: "숨만 쉬어도 1억", B: "50% 확률 100억" },
+            { A: "사생활 공개", B: "사생활 비공개" },
+            { A: "깻잎 떼어주기", B: "절대 안돼" },
+            { A: "술먹고 전애인", B: "술먹고 부장님" },
+            { A: "군대 재입대", B: "애인 없이 10년" }
+        ];
+
+        let questions = [...allQuestions]; 
+        let historyData = [];
+        let totalCount = allQuestions.length;
+        
+        let timeLeft = 300;
+        let timerInterval;
+
+        const textA = document.getElementById('textA');
+        const textB = document.getElementById('textB');
+        const boxA = document.getElementById('boxA');
+        const boxB = document.getElementById('boxB');
+        const timerDisplay = document.getElementById('timer');
+        const progressBar = document.getElementById('progressBar');
+        const gameScreen = document.getElementById('gameScreen');
+        const resultScreen = document.getElementById('resultScreen');
+        const resultList = document.getElementById('resultList');
+
+        const analysisTitle = document.getElementById('analysisTitle');
+        const analysisDesc = document.getElementById('analysisDesc');
+
+        questions.sort(() => Math.random() - 0.5);
+        loadQuestion();
+
+        function loadQuestion() {
+            if (questions.length === 0) {
+                finishGame();
+                return;
+            }
+
+            const progress = ((totalCount - questions.length) / totalCount) * 100;
+            progressBar.style.width = `${progress}%`;
+
+            const q = questions[questions.length - 1]; 
+            
+            textA.innerText = q.A;
+            textB.innerText = q.B;
+            
+            resetStyles();
+            resetTimer();
+        }
+
+        function select(choice) {
+            const currentQ = questions.pop(); 
+
+            historyData.push({
+                question: currentQ,
+                choice: choice
+            });
+
+            if (choice === 'A') {
+                boxA.style.transform = "scale(1.05)";
+                boxA.style.border = "3px solid #ff0000";
+                boxB.style.opacity = "0.3";
+            } else {
+                boxB.style.transform = "scale(1.05)";
+                boxB.style.border = "3px solid #00f2fe";
+                boxA.style.opacity = "0.3";
+            }
+
+            setTimeout(loadQuestion, 200);
+        }
+
+        function finishGame() {
+            clearInterval(timerInterval);
+            progressBar.style.width = "100%";
+            
+            gameScreen.style.opacity = '0';
+            setTimeout(() => {
+                gameScreen.style.display = 'none';
+                resultScreen.classList.add('show');
+                generateAnalysis(); // 분석 생성
+                renderResults(); // 리스트 생성
+            }, 500);
+        }
+
+        // 🔥 [분석 로직] 코멘트 생성
+        function generateAnalysis() {
+            // A(빨강) vs B(파랑) 개수 세기
+            let countA = historyData.filter(i => i.choice === 'A').length;
+            let countB = historyData.filter(i => i.choice === 'B').length;
+            
+            let title = "";
+            let desc = "";
+
+            if (countA > countB + 2) {
+                // A가 압도적으로 많은 경우 (빨강/감성/본능)
+                title = "🔥 야생의 불도저 본능 🔥";
+                desc = "당신은 구석기 시대에 태어났으면 부족장이었을 겁니다. 심리학적으로 '쾌락 추구형'에 가까우며, 고민보다는 행동이 앞서는 스타일! 필터 없이 직진하는 당신의 매력은 치명적이지만, 가끔은 브레이크가 필요할지도?";
+            } else if (countB > countA + 2) {
+                // B가 압도적으로 많은 경우 (파랑/이성/논리)
+                title = "🧊 AI급 냉철한 전략가 🧊";
+                desc = "당신의 뇌 구조는 인류학적으로 '생존 전문가'에 가깝습니다. 리스크를 극도로 싫어하고 효율을 중시하는 타입! 감정에 휘둘리지 않는 차가운 매력이 있지만, 연애할 때는 가끔 오류(Error)가 날 수도?";
+            } else {
+                // 비슷비슷한 경우 (반반)
+                title = "🎭 종잡을 수 없는 매력 🎭";
+                desc = "당신은 프로이드도 분석하다가 포기할 유형입니다. 뜨거웠다가 차가웠다가, 단짠단짠의 정석! 어디로 튈지 모르는 럭비공 같은 매력 때문에 주변 사람들이 심심할 틈이 없겠네요.";
+            }
+
+            analysisTitle.innerText = title;
+            analysisDesc.innerText = desc;
+        }
+
+        function renderResults() {
+            resultList.innerHTML = ''; 
+
+            historyData.forEach((item, index) => {
+                const selectedText = item.choice === 'A' ? item.question.A : item.question.B;
+                const badgeClass = item.choice === 'A' ? 'badge-a' : 'badge-b';
+                
+                const html = `
+                    <div class="result-card">
+                        <div class="choice-badge ${badgeClass}">${item.choice}</div>
+                        <div class="result-text">${selectedText.replace(/\n/g, ' ')}</div>
+                    </div>
+                `;
+                resultList.innerHTML += html;
+            });
+        }
+
+        function startTimer() {
+            timeLeft = 300;
+            updateTimerUI();
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerUI();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    select(Math.random() > 0.5 ? 'A' : 'B'); 
+                }
+            }, 10);
+        }
+
+        function updateTimerUI() {
+            const seconds = Math.floor(timeLeft / 100);
+            const millis = timeLeft % 100;
+            timerDisplay.innerText = `${seconds}.${millis < 10 ? '0' : ''}${millis}`;
+            if(timeLeft < 100) timerDisplay.classList.add('timer-urgent');
+            else timerDisplay.classList.remove('timer-urgent');
+        }
+
+        function resetTimer() { startTimer(); }
+        function resetStyles() {
+            boxA.style.transform = "scale(1)";
+            boxA.style.opacity = "1";
+            boxA.style.border = "2px solid rgba(255,255,255,0.1)";
+            
+            boxB.style.transform = "scale(1)";
+            boxB.style.opacity = "1";
+            boxB.style.border = "2px solid rgba(255,255,255,0.1)";
+        }
+    </script>
+</body>
+</html>

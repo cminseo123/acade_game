@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>M-ARCADE</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { 
+            font-family: Pretendard, sans-serif; 
+            margin: 0; overflow: hidden; 
+            background: #0f0c29;  /* fallback */
+            background: linear-gradient(to bottom, #24243e, #302b63, #0f0c29); 
+            color: white; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 화려한 배경 애니메이션 (오로라 효과) */
+        .aurora-bg {
+            position: absolute; inset: 0; z-index: 0;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            opacity: 0.8;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 3D 컨테이너 */
+        .perspective-container {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+
+        /* 3D 글래스 박스 (메인 패널) */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-top: 1px solid rgba(255, 255, 255, 0.5);
+            border-left: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border-radius: 30px;
+            transform: rotateX(0deg) rotateY(0deg);
+            transition: transform 0.1s ease-out;
+            will-change: transform;
+        }
+
+        /* 앱 아이콘 3D 스타일 */
+        .app-btn {
+            position: relative;
+            display: flex; flex-direction: column; align-items: center;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .app-btn:active { transform: scale(0.9); }
+        .app-btn:hover .icon-box { transform: translateY(-5px) scale(1.05); box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
+
+        .icon-box {
+            width: 72px; height: 72px;
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px; color: white;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        /* 아이콘 광택 효과 */
+        .icon-box::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%);
+        }
+
+        /* 텍스트 그림자 */
+        .text-shadow { text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        
+        /* 둥둥 떠다니는 애니메이션 */
+        .float-anim { animation: float 6s ease-in-out infinite; }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen">
+
+    <div class="aurora-bg"></div>
+    <div class="absolute inset-0 bg-black/20 z-0"></div>
+
+    <div class="relative z-10 w-full max-w-sm px-6 perspective-container" id="mainContainer">
+        
+        <header class="flex justify-between items-end mb-8 pl-2 pr-2">
+            <div>
+                <span class="block text-xs font-bold text-white/80 tracking-widest mb-1">WELCOME TO</span>
+                <h1 class="text-4xl font-black italic text-white tracking-tighter text-shadow">M_ARCADE</h1>
+            </div>
+            <div class="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center font-bold text-white shadow-lg animate-pulse">
+                2P
+            </div>
+        </header>
+
+        <div class="glass-panel p-8 float-anim" id="tiltCard">
+            
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-lg font-bold text-white drop-shadow-md">✨ What's your vibe?</h2>
+                <span class="text-[10px] bg-white/20 px-2 py-1 rounded-full font-bold">Ver 2.0</span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-x-8 gap-y-10 justify-items-center">
+                
+                <a href="topic.html" class="app-btn group">
+                    <div class="icon-box bg-gradient-to-br from-violet-500 to-fuchsia-600">
+                        <i class="fa-solid fa-comments"></i>
+                    </div>
+                    <span class="text-sm mt-3 font-bold text-white/90">대화카드</span>
+                </a>
+
+                <a href="betting.html" class="app-btn group">
+                    <div class="icon-box bg-gradient-to-br from-pink-500 to-rose-500">
+                        <i class="fa-solid fa-bomb"></i>
+                    </div>
+                    <span class="text-sm mt-3 font-bold text-white/90">폭탄내기</span>
+                </a>
+
+                <a href="balance.html" class="app-btn group">
+                    <div class="icon-box bg-gradient-to-br from-cyan-400 to-blue-600">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                    </div>
+                    <span class="text-sm mt-3 font-bold text-white/90">밸런스</span>
+                </a>
+
+                <a href="psychology.html" class="app-btn group">
+                    <div class="icon-box bg-gradient-to-br from-amber-300 to-orange-500">
+                        <i class="fa-solid fa-heart-pulse"></i>
+                    </div>
+                    <span class="text-sm mt-3 font-bold text-white/90">심리검사</span>
+                </a>
+
+                <a href="minesweeper.html" class="app-btn group">
+                    <div class="icon-box bg-gradient-to-br from-emerald-400 to-teal-600">
+                        <i class="fa-solid fa-flag"></i>
+                    </div>
+                    <span class="text-sm mt-3 font-bold text-white/90">지뢰찾기</span>
+                </a>
+
+                <a href="omok.html" class="app-btn group">
+                    <div class="icon-box bg-gradient-to-br from-gray-200 to-gray-500 text-black">
+                        <i class="fa-solid fa-chess-board"></i>
+                    </div>
+                    <span class="text-sm mt-3 font-bold text-white/90">네온오목</span>
+                </a>
+
+            </div>
+        </div>
+
+        <div class="mt-12 text-center">
+            <p class="text-[10px] text-white/60 font-light tracking-[0.2em]">DESIGNED BY MINSEO CHO</p>
+        </div>
+
+    </div>
+
+    <script>
+        const container = document.getElementById('mainContainer');
+        const card = document.getElementById('tiltCard');
+
+        // 마우스/터치 움직임에 따라 3D로 기울어짐
+        document.addEventListener('mousemove', (e) => {
+            const x = (window.innerWidth / 2 - e.pageX) / 25;
+            const y = (window.innerHeight / 2 - e.pageY) / 25;
+            card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+        });
+
+        // 모바일 자이로센서 (폰 기울기) 지원
+        window.addEventListener('deviceorientation', (e) => {
+            const x = e.gamma / 2; // 좌우 기울기
+            const y = e.beta / 2 - 20; // 상하 기울기 (기본 각도 보정)
+            card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+        });
+    </script>
+</body>
+</html>

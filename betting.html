@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bomb Betting</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* [1] 오로라 배경 & 기본 세팅 (통일) */
+        body { 
+            font-family: Pretendard, sans-serif; 
+            margin: 0; overflow: hidden;
+            background: #0f0c29;
+            background: linear-gradient(to bottom, #24243e, #302b63, #0f0c29);
+            color: white;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .aurora-bg {
+            position: absolute; inset: 0; z-index: -1;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            opacity: 0.8;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* [2] 폭탄 본체 (글래스 모피즘) */
+        .bomb-container {
+            position: relative;
+            width: 320px;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+
+        /* [3] 네온 전선 스타일 */
+        .wire {
+            width: 100%; height: 50px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; font-size: 1.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        
+        .wire:active { transform: scale(0.95); }
+
+        /* 색상별 전선 */
+        .wire-red { background: linear-gradient(90deg, #ff416c, #ff4b2b); box-shadow: 0 0 15px rgba(255, 65, 108, 0.4); }
+        .wire-blue { background: linear-gradient(90deg, #2193b0, #6dd5ed); box-shadow: 0 0 15px rgba(33, 147, 176, 0.4); }
+        .wire-green { background: linear-gradient(90deg, #11998e, #38ef7d); box-shadow: 0 0 15px rgba(56, 239, 125, 0.4); }
+        .wire-yellow { background: linear-gradient(90deg, #f7971e, #ffd200); box-shadow: 0 0 15px rgba(255, 210, 0, 0.4); }
+
+        /* 잘린 전선 (비활성) */
+        .wire.cut {
+            background: #333 !important;
+            color: #555;
+            box-shadow: none;
+            transform: scale(0.95);
+            text-decoration: line-through;
+            pointer-events: none; /* 클릭 불가 */
+            border: 2px dashed #555;
+        }
+
+        /* [4] 애니메이션 효과 */
+        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+            40%, 60% { transform: translate3d(8px, 0, 0); }
+        }
+
+        .heartbeat { animation: beat 1.5s infinite; }
+        @keyframes beat { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* 결과 메시지 */
+        .status-msg { height: 30px; margin-top: 10px; font-weight: bold; font-size: 1.1rem; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center h-screen">
+
+    <div class="aurora-bg"></div>
+    <div class="absolute inset-0 bg-black/30"></div>
+
+    <div class="absolute top-6 left-6 z-50">
+        <a href="index.html" class="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white active:scale-90 transition">
+            <i class="fa-solid fa-xmark"></i>
+        </a>
+    </div>
+
+    <div class="bomb-container" id="bomb">
+        
+        <div class="mb-8">
+            <div class="text-6xl mb-4 heartbeat">💣</div>
+            <h2 class="text-3xl font-black italic tracking-tighter text-white">WHO PAYS?</h2>
+            <p class="text-gray-400 text-xs mt-2">전선을 하나씩 잘라보세요 (터치)</p>
+        </div>
+
+        <div id="wireArea">
+            <div class="wire wire-red" onclick="cutWire(this, 0)"><span>RED WIRE</span></div>
+            <div class="wire wire-blue" onclick="cutWire(this, 1)"><span>BLUE WIRE</span></div>
+            <div class="wire wire-green" onclick="cutWire(this, 2)"><span>GREEN WIRE</span></div>
+            <div class="wire wire-yellow" onclick="cutWire(this, 3)"><span>YELLOW WIRE</span></div>
+        </div>
+
+        <div class="status-msg text-gray-300" id="msg">
+            당신의 차례입니다...
+        </div>
+
+        <button onclick="location.reload()" id="resetBtn" class="hidden mt-6 w-full py-3 bg-white text-black font-bold rounded-xl shadow-lg active:scale-95 transition">
+            다시 하기 ↻
+        </button>
+
+    </div>
+
+    <script>
+        // 0~3번 전선 중 하나를 랜덤으로 '폭탄'으로 설정
+        const bombIndex = Math.floor(Math.random() * 4);
+        const msg = document.getElementById('msg');
+        const bomb = document.getElementById('bomb');
+        const resetBtn = document.getElementById('resetBtn');
+        let isGameOver = false;
+
+        function cutWire(element, index) {
+            if (isGameOver) return; // 게임 끝나면 클릭 금지
+
+            if (index === bombIndex) {
+                // [폭발!!!]
+                isGameOver = true;
+                
+                // 1. 전선 스타일 변경
+                element.style.background = '#FF0000';
+                element.innerText = "BOOM !!!";
+                
+                // 2. 화면 흔들기 & 배경 빨갛게
+                bomb.classList.add('shake');
+                document.body.style.background = '#300000'; // 배경 공포스럽게 변경
+                
+                // 3. 메시지 출력
+                msg.innerText = "당첨! 잘 먹겠습니다 🙏";
+                msg.style.color = "#ff416c";
+                
+                // 4. 나머지 전선도 비활성화
+                disableAllWires();
+
+                // 5. 리셋 버튼 표시
+                resetBtn.classList.remove('hidden');
+
+            } else {
+                // [통과 (Safe)]
+                element.classList.add('cut');
+                element.innerHTML = '<i class="fa-solid fa-scissors"></i> CUT';
+                
+                msg.innerText = "휴... 세이프! 😅";
+                msg.style.color = "#38ef7d";
+            }
+        }
+
+        function disableAllWires() {
+            const wires = document.querySelectorAll('.wire');
+            wires.forEach(w => w.classList.add('cut'));
+        }
+    </script>
+</body>
+</html>
