@@ -11,21 +11,41 @@
     <style>
         body { 
             font-family: Pretendard, sans-serif; 
-            margin: 0; overflow: hidden; 
+            margin: 0; 
+            /* overflow: hidden 제거 -> 스크롤 허용 */
+            overflow-x: hidden; /* 가로 스크롤만 방지 */
+            overflow-y: auto;   /* 세로 스크롤 허용 */
+            
+            /* 핵심: 모바일에서 부드러운 관성 스크롤 적용 */
+            -webkit-overflow-scrolling: touch; 
+            
             background: #0f0c29;
             background: linear-gradient(to bottom, #24243e, #302b63, #0f0c29); 
             color: white; 
             -webkit-tap-highlight-color: transparent;
+            min-height: 100vh; /* 최소 높이 보장 */
         }
 
-        /* 오로라 배경 애니메이션 */
+        /* 오로라 배경 애니메이션 - 스크롤해도 배경 고정되도록 fixed로 변경 */
         .aurora-bg {
-            position: absolute; inset: 0; z-index: 0;
+            position: fixed; /* absolute -> fixed */
+            inset: 0; z-index: 0;
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
             background-size: 400% 400%;
             animation: gradientBG 15s ease infinite;
             opacity: 0.8;
+            pointer-events: none; /* 배경이 터치 방해하지 않도록 */
         }
+        
+        /* 어두운 오버레이도 고정 */
+        .dark-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.2);
+            z-index: 0;
+            pointer-events: none;
+        }
+
         @keyframes gradientBG {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
@@ -33,7 +53,13 @@
         }
 
         /* 3D 컨테이너 및 패널 */
-        .perspective-container { perspective: 1000px; transform-style: preserve-3d; }
+        .perspective-container { 
+            perspective: 1000px; 
+            transform-style: preserve-3d; 
+            /* 상하 여백을 주어 스크롤 할 공간 확보 */
+            padding-top: 40px; 
+            padding-bottom: 60px; 
+        }
 
         .glass-panel {
             background: rgba(255, 255, 255, 0.15);
@@ -82,10 +108,10 @@
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen">
+<body class="flex flex-col items-center min-h-screen">
 
     <div class="aurora-bg"></div>
-    <div class="absolute inset-0 bg-black/20 z-0"></div>
+    <div class="dark-overlay"></div>
 
     <div class="relative z-10 w-full max-w-sm px-6 perspective-container" id="mainContainer">
         
@@ -160,7 +186,7 @@
             </div>
         </div>
 
-        <div class="mt-12 text-center">
+        <div class="mt-12 text-center pb-8">
             <p class="text-[10px] text-white/60 font-light tracking-[0.2em]">DESIGNED BY MINSEO CHO</p>
         </div>
 
@@ -170,17 +196,15 @@
         const container = document.getElementById('mainContainer');
         const card = document.getElementById('tiltCard');
 
-        // 마우스/터치 움직임에 따라 3D로 기울어짐
         document.addEventListener('mousemove', (e) => {
             const x = (window.innerWidth / 2 - e.pageX) / 25;
             const y = (window.innerHeight / 2 - e.pageY) / 25;
             card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
         });
 
-        // 모바일 자이로센서 (폰 기울기) 지원
         window.addEventListener('deviceorientation', (e) => {
-            const x = e.gamma / 2; // 좌우 기울기
-            const y = e.beta / 2 - 20; // 상하 기울기 (기본 각도 보정)
+            const x = e.gamma / 2; 
+            const y = e.beta / 2 - 20; 
             card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
         });
     </script>
