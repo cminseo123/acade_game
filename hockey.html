@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Neon Hockey Ultimate</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { 
+            font-family: Pretendard, sans-serif; 
+            margin: 0; overflow: hidden;
+            background: #0f0c29;
+            touch-action: none; 
+            user-select: none;
+        }
+
+        .aurora-bg {
+            position: absolute; inset: 0; z-index: -1;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            opacity: 0.6;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        canvas { display: block; width: 100vw; height: 100vh; cursor: none; }
+
+        .score-board {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) rotate(90deg);
+            font-size: 6rem; font-weight: 900;
+            color: rgba(255,255,255,0.15);
+            display: flex; gap: 60px; pointer-events: none;
+            text-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+
+        .goal-msg {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 5rem; font-weight: 900; color: #fff;
+            text-shadow: 0 0 30px #fff, 0 0 60px #ff00de;
+            opacity: 0; transition: opacity 0.2s;
+            z-index: 50; text-align: center; width: 100%;
+            pointer-events: none;
+        }
+        .show-goal { opacity: 1; animation: pop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { 0% { transform: translate(-50%, -50%) scale(0.5); } 50% { transform: translate(-50%, -50%) scale(1.2); } 100% { transform: translate(-50%, -50%) scale(1); } }
+
+        .close-btn {
+            position: absolute; top: 20px; left: 20px;
+            pointer-events: auto; z-index: 100;
+            width: 44px; height: 44px; border-radius: 50%;
+            background: rgba(255,255,255,0.1); backdrop-filter: blur(5px);
+            display: flex; align-items: center; justify-content: center;
+            color: white; border: 1px solid rgba(255,255,255,0.3);
+            cursor: pointer; transition: all 0.2s;
+        }
+        .close-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
+
+        .guide-text {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: bold;
+            text-align: center; width: 100%;
+            animation: fadeOut 4s forwards; pointer-events: none;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+        @keyframes fadeOut { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+
+        .overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            backdrop-filter: blur(10px);
+        }
+        .overlay.show { opacity: 1; pointer-events: auto; }
+    </style>
+</head>
+<body>
+
+    <div class="aurora-bg"></div>
+
+    <a href="index.html" class="close-btn">
+        <i class="fa-solid fa-xmark text-xl"></i>
+    </a>
+
+    <div class="score-board">
+        <span id="scoreTop" class="text-pink-300">0</span>
+        <span class="text-white/20">-</span>
+        <span id="scoreBottom" class="text-cyan-300">0</span>
+    </div>
+
+    <div id="goalMsg" class="goal-msg">GOAL!</div>
+    <div class="guide-text">
+        FIRST TO 3 WINS!<br>
+        귀여운 곰돌이로 승부하세요 🐻
+    </div>
+
+    <div id="gameOverScreen" class="overlay">
+        <div class="text-6xl mb-6 animate-bounce">🏆</div>
+        <h2 id="winnerText" class="text-5xl font-black mb-2 text-white drop-shadow-lg text-center">WINNER!</h2>
+        <p class="text-white/60 text-lg mb-10">승리를 축하합니다!</p>
+        <button onclick="restartGame()" class="px-10 py-4 bg-white text-black font-black rounded-full text-xl shadow-[0_0_30px_rgba(255,255,255,0.5)] active:scale-95 transition hover:bg-gray-100">
+            다시 하기 ↻
+        </button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreTopEl = document.getElementById('scoreTop');
+        const scoreBottomEl = document.getElementById('scoreBottom');
+        const goalMsg = document.getElementById('goalMsg');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const winnerText = document.getElementById('winnerText');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const FRICTION = 0.985; 
+        const PADDLE_RADIUS = 40; 
+        const PUCK_RADIUS = 22; 
+        const GOAL_SIZE = 150; 
+        const GOAL_DEPTH = 40; 
+        const WIN_SCORE = 3; 
+        const SUB_STEPS = 5; // [핵심] 1프레임을 5번 쪼개서 계산 (뚫림 방지)
+
+        let scoreTop = 0;
+        let scoreBottom = 0;
+        let isPaused = false;
+        let particles = [];
+        let scoringState = null; 
+        let globalTime = 0; 
+
+        const puck = { x: canvas.width / 2, y: canvas.height / 2, vx: 0, vy: 0, radius: PUCK_RADIUS };
+        
+        // 플레이어 객체 (targetX, targetY 추가 -> 부드러운 이동 및 물리 계산용)
+        const playerTop = { 
+            x: canvas.width / 2, y: 120, targetX: canvas.width/2, targetY: 120,
+            visualX: canvas.width / 2, visualY: 120,
+            prevX: canvas.width / 2, prevY: 120,
+            vx: 0, vy: 0,
+            radius: PADDLE_RADIUS, 
+            colorMain: '#ec4899', colorDark: '#be185d', colorLight: '#fbcfe8',
+            isDragging: false, touchId: null,
+            blinkTimer: 0, expression: 'normal' 
+        };
+        const playerBottom = { 
+            x: canvas.width / 2, y: canvas.height - 120, targetX: canvas.width/2, targetY: canvas.height - 120,
+            visualX: canvas.width / 2, visualY: canvas.height - 120,
+            prevX: canvas.width / 2, prevY: canvas.height - 120,
+            vx: 0, vy: 0,
+            radius: PADDLE_RADIUS, 
+            colorMain: '#06b6d4', colorDark: '#0891b2', colorLight: '#cffafe',
+            isDragging: false, touchId: null,
+            blinkTimer: 0, expression: 'normal'
+        };
+
+        // --- 파티클 ---
+        class Particle {
+            constructor(x, y, color, type = 'spark') {
+                this.x = x; this.y = y;
+                const speed = type === 'sweat' ? 5 : 12;
+                this.vx = (Math.random() - 0.5) * speed;
+                this.vy = (Math.random() - 0.5) * speed;
+                this.life = 1.0; this.color = color;
+                this.size = Math.random() * (type === 'sweat' ? 3 : 5) + 2;
+                this.type = type;
+            }
+            update() { 
+                this.x += this.vx; this.y += this.vy; 
+                this.life -= 0.04; 
+                if (this.type === 'sweat') this.vy += 0.5; 
+                this.size *= 0.94; 
+            }
+            draw(ctx) { 
+                ctx.globalAlpha = this.life; ctx.fillStyle = this.color; 
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); 
+                ctx.globalAlpha = 1.0; 
+            }
+        }
+        function spawnParticles(x, y, color, count = 10, type = 'spark') { 
+            for(let i=0; i<count; i++) particles.push(new Particle(x, y, color, type)); 
+        }
+
+        // --- 게임 루프 ---
+        function gameLoop() {
+            if(!isPaused) {
+                // [핵심] 물리를 여러 번 나눠서 업데이트 (Sub-stepping)
+                for(let i=0; i<SUB_STEPS; i++) {
+                    updatePhysics(1 / SUB_STEPS);
+                }
+                updateVisuals();
+                draw();
+            }
+            globalTime += 0.1;
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 물리 업데이트 (Sub-step용)
+        function updatePhysics(dt) {
+            // 패들 위치 이동 (Lerp로 부드럽게 목표 지점으로 이동)
+            const moveFactor = 0.5; // 반응 속도
+            playerTop.prevX = playerTop.x; playerTop.prevY = playerTop.y;
+            playerTop.x += (playerTop.targetX - playerTop.x) * moveFactor * dt * 5; 
+            playerTop.y += (playerTop.targetY - playerTop.y) * moveFactor * dt * 5;
+            playerTop.vx = (playerTop.x - playerTop.prevX) / dt;
+            playerTop.vy = (playerTop.y - playerTop.prevY) / dt;
+
+            playerBottom.prevX = playerBottom.x; playerBottom.prevY = playerBottom.y;
+            playerBottom.x += (playerBottom.targetX - playerBottom.x) * moveFactor * dt * 5;
+            playerBottom.y += (playerBottom.targetY - playerBottom.y) * moveFactor * dt * 5;
+            playerBottom.vx = (playerBottom.x - playerBottom.prevX) / dt;
+            playerBottom.vy = (playerBottom.y - playerBottom.prevY) / dt;
+
+            // 퍽 이동
+            puck.x += puck.vx * dt;
+            puck.y += puck.vy * dt;
+            
+            // 마찰력 (한 번만 적용)
+            if (dt === 1/SUB_STEPS) { 
+                 puck.vx *= Math.pow(FRICTION, dt);
+                 puck.vy *= Math.pow(FRICTION, dt);
+            } else {
+                 puck.vx *= 0.999; puck.vy *= 0.999;
+            }
+
+            // 벽 충돌
+            const inGoalX = puck.x > canvas.width/2 - GOAL_SIZE/2 && puck.x < canvas.width/2 + GOAL_SIZE/2;
+
+            if (puck.x - puck.radius < 0) { puck.x = puck.radius; puck.vx *= -0.8; }
+            else if (puck.x + puck.radius > canvas.width) { puck.x = canvas.width - puck.radius; puck.vx *= -0.8; }
+
+            if (puck.y - puck.radius < 0) {
+                if (inGoalX) { if (!scoringState) scoringState = 'bottom'; } 
+                else { puck.y = puck.radius; puck.vy *= -0.8; }
+            }
+            else if (puck.y + puck.radius > canvas.height) {
+                if (inGoalX) { if (!scoringState) scoringState = 'top'; } 
+                else { puck.y = canvas.height - puck.radius; puck.vy *= -0.8; }
+            }
+
+            // 골인 감지
+            if (scoringState === 'bottom' && puck.y < -GOAL_DEPTH) { score('bottom'); scoringState = null; } 
+            else if (scoringState === 'top' && puck.y > canvas.height + GOAL_DEPTH) { score('top'); scoringState = null; }
+
+            // 패들 충돌 (뚫림 방지)
+            if (!scoringState) {
+                checkPaddleCollision(playerTop); 
+                checkPaddleCollision(playerBottom);
+            }
+        }
+
+        function updateVisuals() {
+             // 땀 효과
+            const speedTop = Math.sqrt(playerTop.vx**2 + playerTop.vy**2);
+            if (speedTop > 20 && Math.random() < 0.3) spawnParticles(playerTop.x, playerTop.y - 30, '#a5f3fc', 1, 'sweat');
+            const speedBottom = Math.sqrt(playerBottom.vx**2 + playerBottom.vy**2);
+            if (speedBottom > 20 && Math.random() < 0.3) spawnParticles(playerBottom.x, playerBottom.y - 30, '#a5f3fc', 1, 'sweat');
+
+            // 파티클
+            particles.forEach((p, index) => { p.update(); if(p.life <= 0) particles.splice(index, 1); });
+        }
+
+        // [핵심] 충돌 처리 개선 (운동량 보존 + 위치 보정)
+        function checkPaddleCollision(p) {
+            const dx = puck.x - p.x;
+            const dy = puck.y - p.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const minDist = p.radius + puck.radius;
+
+            if (dist < minDist) {
+                // 1. 위치 보정 (겹치지 않게 밀어내기)
+                const angle = Math.atan2(dy, dx);
+                const overlap = minDist - dist;
+                puck.x += Math.cos(angle) * overlap;
+                puck.y += Math.sin(angle) * overlap;
+
+                // 2. 속도 계산 (패들의 속도를 공에 전달)
+                // 패들이 공을 치는 힘 + 공의 반사
+                const impactPower = 1.2; // 탄성 계수
+                puck.vx = (puck.vx * -0.5) + (p.vx * impactPower);
+                puck.vy = (puck.vy * -0.5) + (p.vy * impactPower);
+
+                // 속도 상한선 (너무 빠르면 재미없음)
+                const maxSpeed = 40;
+                const speed = Math.sqrt(puck.vx**2 + puck.vy**2);
+                if (speed > maxSpeed) {
+                    puck.vx = (puck.vx / speed) * maxSpeed;
+                    puck.vy = (puck.vy / speed) * maxSpeed;
+                }
+                
+                // 최소 속도 보장 (너무 살살 맞으면 밀려나게)
+                if (speed < 5) {
+                    puck.vx += Math.cos(angle) * 5;
+                    puck.vy += Math.sin(angle) * 5;
+                }
+
+                spawnParticles(puck.x - Math.cos(angle)*puck.radius, puck.y - Math.sin(angle)*puck.radius, p.colorLight, 10);
+                if(navigator.vibrate) navigator.vibrate(30);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // 경기장
+            ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(255,255,255,0.5)'; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(canvas.width / 2, canvas.height / 2, 80, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
+
+            draw3DGoal(canvas.width/2, 0, GOAL_SIZE, GOAL_DEPTH, '#ec4899', true); 
+            draw3DGoal(canvas.width/2, canvas.height, GOAL_SIZE, GOAL_DEPTH, '#06b6d4', false); 
+
+            particles.forEach(p => p.draw(ctx));
+            
+            drawCuteCharacter(playerTop, true);
+            drawCuteCharacter(playerBottom, false);
+
+            draw3DPuckInGoal();
+        }
+
+        // --- 캐릭터 그리기 (킹받는 표정 적용) ---
+        function drawCuteCharacter(p, isTop) {
+            if (p.blinkTimer > 0) p.blinkTimer--;
+            else if (Math.random() < 0.01) p.blinkTimer = 10;
+
+            const tiltX = (p.x - p.prevX) * 2; 
+            
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            if (isTop) ctx.rotate(Math.PI); 
+
+            // 발
+            const legMove = (Math.abs(p.vx)>0.5 || Math.abs(p.vy)>0.5) ? Math.sin(globalTime * 8) * 8 : Math.sin(globalTime * 2) * 5;
+            ctx.fillStyle = p.colorDark;
+            ctx.beginPath(); ctx.arc(-25 + tiltX*0.2, 20 + legMove, 12, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(25 + tiltX*0.2, 20 - legMove, 12, 0, Math.PI*2); ctx.fill();
+
+            // 몸통
+            ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(5, 15, p.radius, p.radius*0.8, 0, 0, Math.PI*2); ctx.fill();
+            ctx.rotate(tiltX * 0.03); 
+            let grad = ctx.createRadialGradient(-10, -10, 5, 0, 0, p.radius);
+            grad.addColorStop(0, p.colorLight); grad.addColorStop(0.3, p.colorMain); grad.addColorStop(1, p.colorDark);
+            ctx.fillStyle = grad;
+            const stretchX = 1 + Math.abs(p.vx)*0.01; const stretchY = 1 - Math.abs(p.vx)*0.01;
+            ctx.scale(stretchX, stretchY);
+            ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
+
+            // [핵심] 표정 그리기
+            const eyeOffsetX = Math.max(-8, Math.min(8, p.vx));
+            const eyeOffsetY = Math.max(-8, Math.min(8, p.vy));
+            
+            ctx.lineWidth = 3; ctx.lineCap = 'round';
+
+            if (p.expression === 'win') {
+                // 승리: 킹받는 표정 (^ ~ ^ + 혓바닥)
+                ctx.strokeStyle = '#222';
+                // 눈 (웃음)
+                ctx.beginPath(); ctx.arc(-15, -10, 8, Math.PI*0.8, Math.PI*2.2); ctx.stroke(); // 왼쪽
+                ctx.beginPath(); ctx.arc(15, -10, 8, Math.PI*0.8, Math.PI*2.2); ctx.stroke(); // 오른쪽
+                // 입 (메롱)
+                ctx.fillStyle = '#ff5252';
+                ctx.beginPath(); ctx.arc(0, 10, 10, 0, Math.PI); ctx.fill(); // 입 벌림
+                ctx.beginPath(); ctx.arc(Math.sin(globalTime*0.5)*5, 18, 6, 0, Math.PI); ctx.fill(); // 혀 낼름낼름
+            } else if (p.expression === 'lose') {
+                // 패배: 굵은 눈물 + 떨리는 입
+                ctx.strokeStyle = '#222';
+                // 눈 (ㅜ ㅜ)
+                ctx.beginPath(); ctx.moveTo(-20, -12); ctx.lineTo(-8, -12); ctx.moveTo(-14, -12); ctx.lineTo(-14, -4); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(8, -12); ctx.lineTo(20, -12); ctx.moveTo(14, -12); ctx.lineTo(14, -4); ctx.stroke();
+                // 눈물 (굵게)
+                ctx.fillStyle = '#60a5fa';
+                ctx.beginPath(); ctx.arc(-14, 0 + (globalTime%10)*2, 4, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(14, 5 + (globalTime%10)*2, 4, 0, Math.PI*2); ctx.fill();
+                // 입 (바들바들)
+                ctx.beginPath(); 
+                ctx.moveTo(-10, 15);
+                for(let i=0; i<20; i+=4) ctx.lineTo(-10+i, 15 + Math.sin(i*2 + globalTime*2)*2);
+                ctx.stroke();
+            } else {
+                // 평소
+                if (p.blinkTimer > 0) {
+                    ctx.strokeStyle = '#222';
+                    ctx.beginPath(); ctx.moveTo(-18, -5); ctx.lineTo(-6, -5); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(6, -5); ctx.lineTo(18, -5); ctx.stroke();
+                } else {
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath(); ctx.arc(-12 + eyeOffsetX, -10 + eyeOffsetY, 10, 0, Math.PI*2); ctx.fill(); 
+                    ctx.beginPath(); ctx.arc(12 + eyeOffsetX, -10 + eyeOffsetY, 10, 0, Math.PI*2); ctx.fill(); 
+                    ctx.fillStyle = '#111';
+                    ctx.beginPath(); ctx.arc(-12 + eyeOffsetX*1.2, -10 + eyeOffsetY*1.2, 4, 0, Math.PI*2); ctx.fill(); 
+                    ctx.beginPath(); ctx.arc(12 + eyeOffsetX*1.2, -10 + eyeOffsetY*1.2, 4, 0, Math.PI*2); ctx.fill(); 
+                }
+                ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+                ctx.beginPath(); ctx.arc(0 + eyeOffsetX*0.5, 5 + eyeOffsetY*0.5, 5, 0, Math.PI, false); ctx.stroke();
+            }
+
+            // 헤어밴드
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.shadowColor = '#fff'; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(0, -p.radius + 15, 25, Math.PI, 0); ctx.stroke(); ctx.shadowBlur = 0;
+
+            ctx.restore();
+        }
+
+        function draw3DGoal(x, y, width, depth, color, isTop) {
+            const halfW = width / 2; const yEnd = isTop ? y - depth : y + depth; const yEdge = isTop ? y : y;
+            const grad = ctx.createLinearGradient(x, y, x, yEnd);
+            grad.addColorStop(0, isTop ? 'rgba(0,0,0,0.2)' : color + '44'); grad.addColorStop(1, isTop ? color + '44' : 'rgba(0,0,0,0.6)');
+            ctx.fillStyle = grad;
+            ctx.beginPath(); ctx.moveTo(x - halfW, yEdge); ctx.lineTo(x + halfW, yEdge); ctx.lineTo(x + halfW * 0.8, yEnd); ctx.lineTo(x - halfW * 0.8, yEnd); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.beginPath(); ctx.moveTo(x - halfW, yEdge); ctx.lineTo(x - halfW * 0.8, yEnd); ctx.lineTo(x - halfW * 0.8, yEnd + (isTop?5:-5)); ctx.lineTo(x - halfW, yEdge + (isTop?5:-5)); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(x + halfW, yEdge); ctx.lineTo(x + halfW * 0.8, yEnd); ctx.lineTo(x + halfW * 0.8, yEnd + (isTop?5:-5)); ctx.lineTo(x + halfW, yEdge + (isTop?5:-5)); ctx.fill();
+            ctx.shadowColor = color; ctx.shadowBlur = 20; ctx.strokeStyle = color; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(x - halfW - 5, yEdge); ctx.lineTo(x + halfW + 5, yEdge); ctx.stroke(); ctx.shadowBlur = 0;
+        }
+
+        function draw3DPuckInGoal() {
+            let alpha = 1.0; let darken = 0;
+            if (puck.y < 0) { const depthRatio = Math.min(Math.abs(puck.y) / GOAL_DEPTH, 1); alpha = 1 - depthRatio; darken = depthRatio * 150; } 
+            else if (puck.y > canvas.height) { const depthRatio = Math.min((puck.y - canvas.height) / GOAL_DEPTH, 1); alpha = 1 - depthRatio; darken = depthRatio * 150; }
+            if (alpha <= 0) return;
+            ctx.save(); ctx.globalAlpha = alpha;
+            const baseColorVal = Math.max(204 - darken, 50);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(puck.x + 3, puck.y + 5, puck.radius, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = `rgb(${baseColorVal},${baseColorVal},${baseColorVal})`; ctx.beginPath(); ctx.arc(puck.x, puck.y, puck.radius, 0, Math.PI*2); ctx.fill();
+            const topColorVal = Math.max(255 - darken, 100); const topColorEnd = Math.max(229 - darken, 80);
+            let grad = ctx.createRadialGradient(puck.x - 3, puck.y - 3, 2, puck.x, puck.y, puck.radius);
+            grad.addColorStop(0, `rgb(${topColorVal},${topColorVal},${topColorVal})`); grad.addColorStop(1, `rgb(${topColorEnd},${topColorEnd},${topColorEnd})`);
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(puck.x, puck.y - 2, puck.radius * 0.9, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 15 * alpha; ctx.shadowColor = '#fff'; ctx.strokeStyle = `rgba(255,255,255,${alpha})`; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+        }
+
+        function score(winner) {
+            if(winner === 'top') scoreTop++; else scoreBottom++;
+            scoreTopEl.innerText = scoreTop; scoreBottomEl.innerText = scoreBottom;
+
+            if (winner === 'top') { playerTop.expression = 'win'; playerBottom.expression = 'lose'; } 
+            else { playerTop.expression = 'lose'; playerBottom.expression = 'win'; }
+
+            if (scoreTop >= WIN_SCORE || scoreBottom >= WIN_SCORE) { endGame(winner); return; }
+
+            goalMsg.classList.add('show-goal'); isPaused = true;
+            if(navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 150]);
+            
+            setTimeout(() => { 
+                goalMsg.classList.remove('show-goal'); 
+                playerTop.expression = 'normal'; playerBottom.expression = 'normal'; 
+                resetPuck(); isPaused = false; 
+            }, 2000); 
+        }
+
+        function endGame(winner) {
+            isPaused = true;
+            const name = winner === 'top' ? 'PINK' : 'BLUE';
+            const colorClass = winner === 'top' ? 'text-pink-400' : 'text-cyan-400';
+            winnerText.innerText = `${name} WINS!`;
+            winnerText.className = `text-5xl font-black mb-2 drop-shadow-lg text-center ${colorClass}`;
+            gameOverScreen.classList.add('show');
+        }
+
+        function restartGame() {
+            scoreTop = 0; scoreBottom = 0;
+            scoreTopEl.innerText = 0; scoreBottomEl.innerText = 0;
+            gameOverScreen.classList.remove('show');
+            playerTop.expression = 'normal'; playerBottom.expression = 'normal';
+            resetPuck(); isPaused = false; gameLoop();
+        }
+
+        function resetPuck() {
+            puck.x = canvas.width / 2; puck.y = canvas.height / 2; puck.vx = 0; puck.vy = 0;
+            playerTop.targetX = canvas.width / 2; playerTop.targetY = 120;
+            playerBottom.targetX = canvas.width / 2; playerBottom.targetY = canvas.height - 120;
+            scoringState = null;
+        }
+
+        canvas.addEventListener('touchstart', handleTouch, {passive: false});
+        canvas.addEventListener('touchmove', handleTouch, {passive: false});
+        canvas.addEventListener('touchend', endTouch);
+
+        function handleTouch(e) {
+            e.preventDefault();
+            for (let i = 0; i < e.touches.length; i++) {
+                const t = e.touches[i];
+                if (t.clientY < canvas.height / 2) updatePaddleTarget(playerTop, t.clientX, t.clientY, t.identifier);
+                else updatePaddleTarget(playerBottom, t.clientX, t.clientY, t.identifier);
+            }
+        }
+
+        function updatePaddleTarget(p, tx, ty, id) {
+            if (!p.isDragging || p.touchId === id) {
+                p.touchId = id; p.isDragging = true;
+                // 목표 지점 설정 (직접 이동 X, 물리 엔진에서 이동)
+                p.targetX = tx; 
+                if (p === playerTop) p.targetY = Math.min(ty, canvas.height/2 - p.radius);
+                else p.targetY = Math.max(ty, canvas.height/2 + p.radius);
+            }
+        }
+
+        function endTouch(e) {
+            const activeIds = Array.from(e.touches).map(t => t.identifier);
+            if (!activeIds.includes(playerTop.touchId)) playerTop.isDragging = false;
+            if (!activeIds.includes(playerBottom.touchId)) playerBottom.isDragging = false;
+        }
+
+        // PC 지원
+        canvas.addEventListener('mousemove', (e) => {
+            playerBottom.targetX = e.clientX; 
+            playerBottom.targetY = Math.max(e.clientY, canvas.height / 2 + playerBottom.radius);
+            playerBottom.isDragging = true;
+        });
+        window.addEventListener('keydown', (e) => {
+            const speed = 25;
+            if (e.key === 'a') playerTop.targetX -= speed; if (e.key === 'd') playerTop.targetX += speed;
+            if (e.key === 'w') playerTop.targetY -= speed; if (e.key === 's') playerTop.targetY += speed;
+            // 키보드는 즉시 반영
+            playerTop.x = playerTop.targetX; playerTop.y = playerTop.targetY;
+        });
+
+        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; resetPuck(); });
+
+        gameLoop();
+    </script>
+</body>
+</html>
